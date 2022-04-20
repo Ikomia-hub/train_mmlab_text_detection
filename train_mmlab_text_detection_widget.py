@@ -19,9 +19,10 @@
 from ikomia import core, dataprocess
 from ikomia.utils import pyqtutils, qtconversion
 from train_mmlab_text_detection.train_mmlab_text_detection_process import TrainMmlabTextDetectionParam
-from train_mmlab_text_detection.utils import textdet_models
 # PyQt GUI framework
 from PyQt5.QtWidgets import *
+import os
+import yaml
 
 
 # --------------------
@@ -41,17 +42,27 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         # Create layout : QGridLayout by default
         self.grid_layout = QGridLayout()
 
-        # Model name
-        self.combo_model_name = pyqtutils.append_combo(self.grid_layout, "Model name")
-        for name in textdet_models.keys():
-            self.combo_model_name.addItem(name)
-        self.combo_model_name.setCurrentText(self.parameters.cfg["model_name"])
+        # Models
+        self.combo_model = pyqtutils.append_combo(self.grid_layout, "Model")
+        self.combo_config = pyqtutils.append_combo(self.grid_layout, "Config name")
+        self.configs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textdet")
+        for dir in os.listdir(self.configs_path):
+            if os.path.isdir(os.path.join(self.configs_path, dir)) and dir != "_base_":
+                self.combo_model.addItem(dir)
+
+        self.combo_model.currentTextChanged.connect(self.on_combo_model_changed)
+
+        self.combo_model.setCurrentText(self.parameters.cfg["model_name"])
 
         # Epochs
         self.spin_epochs = pyqtutils.append_spin(self.grid_layout, "Epochs", self.parameters.cfg["epochs"])
 
         # Batch size
         self.spin_batch = pyqtutils.append_spin(self.grid_layout, "Batch size", self.parameters.cfg["batch_size"])
+
+        # Pretrain
+        self.check_pretrain = pyqtutils.append_check(self.grid_layout, "Load mmocr pretrain",
+                                                     self.parameters.cfg["pretrain"])
 
         # Evaluation period
         self.spin_eval_period = pyqtutils.append_spin(self.grid_layout, "Eval period",
@@ -69,7 +80,7 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
 
         # Dataset folder
         self.browse_dataset_folder = pyqtutils.append_browse_file(self.grid_layout, label="Dataset folder",
-                                                                  path = self.parameters.cfg["dataset_folder"],
+                                                                  path=self.parameters.cfg["dataset_folder"],
                                                                   tooltip="Select folder",
                                                                   mode=QFileDialog.Directory)
         # Expert mode
@@ -78,32 +89,22 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
 
         # Custom Model
         self.label_model = QLabel("Model config file (.py)")
-        self.browse_cfg_file = pyqtutils.BrowseFileWidget(path=self.parameters.cfg["custom_model"],
+        self.browse_cfg_file = pyqtutils.BrowseFileWidget(path=self.parameters.cfg["custom_cfg"],
                                                           tooltip="Select file",
                                                           mode=QFileDialog.ExistingFile)
         row = self.grid_layout.rowCount()
         self.grid_layout.addWidget(self.label_model, row, 0)
         self.grid_layout.addWidget(self.browse_cfg_file, row, 1)
 
-        # Pretrain
-        self.label_pretrain = QLabel("Pretrain weight file (.pth)")
-        self.browse_pretrain_file = pyqtutils.BrowseFileWidget(path=self.parameters.cfg["pretrain"],
-                                                               tooltip="Select file",
-                                                               mode=QFileDialog.ExistingFile)
-
-        row = self.grid_layout.rowCount()
-        self.grid_layout.addWidget(self.label_pretrain, row, 0)
-        self.grid_layout.addWidget(self.browse_pretrain_file, row, 1)
-
         self.label_model.setVisible(self.check_expert.isChecked())
         self.browse_cfg_file.setVisible(self.check_expert.isChecked())
-        self.label_pretrain.setVisible(self.check_expert.isChecked())
-        self.browse_pretrain_file.setVisible(self.check_expert.isChecked())
 
-        self.spin_batch.setVisible(not(self.check_expert.isChecked()))
-        self.spin_epochs.setVisible(not(self.check_expert.isChecked()))
-        self.spin_eval_period.setVisible(not(self.check_expert.isChecked()))
-        self.combo_model_name.setVisible(not(self.check_expert.isChecked()))
+        self.spin_batch.setVisible(not self.check_expert.isChecked())
+        self.spin_epochs.setVisible(not self.check_expert.isChecked())
+        self.spin_eval_period.setVisible(not self.check_expert.isChecked())
+        self.combo_model.setVisible(not self.check_expert.isChecked())
+        self.combo_config.setVisible(not self.check_expert.isChecked())
+        self.check_pretrain.setVisible(not self.check_expert.isChecked())
 
         # PyQt -> Qt wrapping
         layout_ptr = qtconversion.PyQtToQt(self.grid_layout)
@@ -117,25 +118,52 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         self.label_pretrain.setVisible(self.check_expert.isChecked())
         self.browse_pretrain_file.setVisible(self.check_expert.isChecked())
 
-        self.spin_batch.setVisible(not(self.check_expert.isChecked()))
-        self.spin_epochs.setVisible(not(self.check_expert.isChecked()))
-        self.spin_eval_period.setVisible(not(self.check_expert.isChecked()))
-        self.combo_model_name.setVisible(not(self.check_expert.isChecked()))
+        self.spin_batch.setVisible(not (self.check_expert.isChecked()))
+        self.spin_epochs.setVisible(not (self.check_expert.isChecked()))
+        self.spin_eval_period.setVisible(not (self.check_expert.isChecked()))
+        self.combo_model.setVisible(not (self.check_expert.isChecked()))
+        self.combo_config.setVisible(not (self.check_expert.isChecked()))
+
+    def on_combo_model_changed(self, int):
+        if self.combo_model.currentText() != "":
+            self.combo_config.clear()
+            current_model = self.combo_model.currentText()
+            config_names = []
+            yaml_file = os.path.join(self.configs_path, current_model, "metafile.yml")
+            if os.path.isfile(yaml_file):
+                with open(yaml_file, "r") as f:
+                    models_list = yaml.load(f, Loader=yaml.FullLoader)['Models']
+
+                self.available_cfg_ckpt = {model_dict["Name"]: {'cfg': model_dict["Config"],
+                                                                'ckpt': model_dict["Weights"]}
+                                           for
+                                           model_dict in models_list}
+                for experiment_name in self.available_cfg_ckpt.keys():
+                    self.combo_config.addItem(experiment_name)
+                    config_names.append(experiment_name)
+                print(self.parameters.cfg["cfg"])
+                selected_cfg = self.parameters.cfg["cfg"].replace(".py", "")
+                if selected_cfg in config_names:
+                    self.combo_config.setCurrentText(selected_cfg)
+                else:
+                    self.combo_config.setCurrentText(list(self.available_cfg_ckpt.keys())[0])
 
     def onApply(self):
         # Apply button clicked slot
 
         # Get parameters from widget
-        self.parameters.cfg["model_name"] = self.combo_model_name.currentText()
+        self.parameters.cfg["model_name"] = self.combo_model.currentText()
+        _, self.parameters.cfg["cfg"] = os.path.split(self.available_cfg_ckpt[self.combo_config.currentText()]["cfg"])
         self.parameters.cfg["epochs"] = self.spin_epochs.value()
         self.parameters.cfg["batch_size"] = self.spin_batch.value()
         self.parameters.cfg["eval_period"] = self.spin_eval_period.value()
         self.parameters.cfg["dataset_split_ratio"] = self.spin_train_test.value()
         self.parameters.cfg["expert_mode"] = self.check_expert.isChecked()
-        self.parameters.cfg["custom_model"] = self.browse_cfg_file.path
+        self.parameters.cfg["custom_cfg"] = self.browse_cfg_file.path
         self.parameters.cfg["dataset_folder"] = self.browse_dataset_folder.path
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
-        self.parameters.cfg["pretrain"] = self.browse_pretrain_file.path
+        self.parameters.cfg["pretrain"] = self.check_pretrain.isChecked()
+        self.parameters.cfg["weights"] = self.available_cfg_ckpt[self.combo_config.currentText()]["ckpt"]
 
         # Send signal to launch the process
         self.emitApply(self.parameters)
