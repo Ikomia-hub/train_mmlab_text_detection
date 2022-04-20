@@ -7,6 +7,8 @@ from pathlib import Path
 import random
 import shutil
 from mmcv.runner.hooks import HOOKS, Hook
+from mmcv.runner.hooks import LoggerHook
+from mmcv.runner.dist_utils import master_only
 
 
 class UserStop(Exception):
@@ -32,6 +34,40 @@ try:
                 raise UserStop
 except:
     print("CustomHook already registered")
+
+try:
+    @HOOKS.register_module()
+    class CustomMlflowLoggerHook(LoggerHook):
+        """Class to log metrics and (optionally) a trained model to MLflow.
+        It requires `MLflow`_ to be installed.
+        Args:
+            interval (int): Logging interval (every k iterations). Default: 10.
+            ignore_last (bool): Ignore the log of last iterations in each epoch
+                if less than `interval`. Default: True.
+            reset_flag (bool): Whether to clear the output buffer after logging.
+                Default: False.
+            by_epoch (bool): Whether EpochBasedRunner is used. Default: True.
+        .. _MLflow:
+            https://www.mlflow.org/docs/latest/index.html
+        """
+
+        def __init__(self,
+                     log_metrics,
+                     interval=10,
+                     ignore_last=True,
+                     reset_flag=False,
+                     by_epoch=False):
+            super(CustomMlflowLoggerHook, self).__init__(interval, ignore_last,
+                                                   reset_flag, by_epoch)
+            self.log_metrics = log_metrics
+
+        @master_only
+        def log(self, runner):
+            tags = self.get_loggable_tags(runner)
+            if tags:
+                self.log_metrics(tags, step=self.get_iter(runner))
+except:
+    print("MlflowLoggerHook already registered")
 
 
 def area(pts):

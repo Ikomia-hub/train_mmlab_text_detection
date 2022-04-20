@@ -23,7 +23,7 @@ import copy
 from datetime import datetime
 import os
 from pathlib import Path
-from train_mmlab_text_detection.utils import prepare_dataset, textdet_models, UserStop
+from train_mmlab_text_detection.utils import prepare_dataset, UserStop
 import os.path as osp
 import time
 import distutils
@@ -251,7 +251,8 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         # add custom hook to stop process and save latest model each epoch
         cfg.custom_hooks = [
             dict(type='CustomHook', stop=self.get_stop, output_folder=str(self.output_folder),
-                 emitStepProgress=self.emitStepProgress, priority='LOWEST')
+                 emitStepProgress=self.emitStepProgress, priority='LOWEST'),
+            dict(type='CustomMlflowLoggerHook', log_metrics=self.log_metrics)
         ]
         try:
             train_detector(
