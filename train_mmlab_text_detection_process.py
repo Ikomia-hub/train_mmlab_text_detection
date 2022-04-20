@@ -52,28 +52,33 @@ class TrainMmlabTextDetectionParam(TaskParam):
 
     def __init__(self):
         TaskParam.__init__(self)
-        self.cfg["model_name"] = "DB_r18"
+        self.cfg["model_name"] = "dbnet"
+        self.cfg["cfg"] = "dbnet_r50dcnv2_fpnc_1200e_icdar2015.py"
+        self.cfg["weights"] = "https://download.openmmlab.com/mmocr/textdet/dbnet" \
+                              "/dbnet_r50dcnv2_fpnc_sbn_1200e_icdar2015_20211025-9fe3b590.pth "
         self.cfg["epochs"] = 10
-        self.cfg["batch_size"] = 8
+        self.cfg["batch_size"] = 4
         self.cfg["dataset_split_ratio"] = 90
         self.cfg["output_folder"] = os.path.dirname(os.path.realpath(__file__)) + "/runs/"
-        self.cfg["custom_model"] = ""
         self.cfg["eval_period"] = 1
-        self.cfg["pretrain"] = ""
+        self.cfg["pretrain"] = True
         self.cfg["dataset_folder"] = os.path.dirname(os.path.realpath(__file__))
         self.cfg["expert_mode"] = False
+        self.cfg["custom_cfg"] = ""
 
     def setParamMap(self, param_map):
         self.cfg["model_name"] = param_map["model_name"]
+        self.cfg["cfg"] = param_map["cfg"]
         self.cfg["epochs"] = int(param_map["epochs"])
         self.cfg["batch_size"] = int(param_map["batch_size"])
         self.cfg["dataset_split_ratio"] = int(param_map["dataset_split_ratio"])
         self.cfg["output_folder"] = param_map["output_folder"]
-        self.cfg["custom_model"] = param_map["custom_model"]
         self.cfg["eval_period"] = int(param_map["eval_period"])
-        self.cfg["pretrain"] = param_map["pretrain"]
+        self.cfg["pretrain"] = distutils.util.strtobool(param_map["pretrain"])
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
         self.cfg["expert_mode"] = distutils.util.strtobool(param_map["expert_mode"])
+        self.cfg["custom_cfg"] = param_map["custom_cfg"]
+        self.cfg["pretrain"] = distutils.util.strtobool(param_map["pretrain"])
 
 
 # --------------------
@@ -133,45 +138,46 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         prepare_dataset(input.data, param.cfg["dataset_folder"], param.cfg["dataset_split_ratio"] / 100)
 
         # Create config from config file and parameters
-        if not (param.cfg["expert_mode"]):
-            config = str(Path(os.path.dirname(os.path.realpath(__file__))) / "configs/textdet" \
-                         / textdet_models[param.cfg["model_name"]]['config'])
+        if not param.cfg["expert_mode"]:
+            config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textdet",
+                                               param.cfg["model_name"], param.cfg["cfg"])
             cfg = Config.fromfile(config)
-            seed = None
             cfg.work_dir = str(self.output_folder)
-            gpus = 1
-            launcher = "none"
-            deterministic = True
             eval_period = param.cfg["eval_period"]
             cfg.log_config = dict(
                 interval=5,
-
                 hooks=[
                     dict(type='TextLoggerHook'),
                     dict(type='TensorboardLoggerHook', log_dir=tb_logdir)
                 ])
             cfg.total_epochs = param.cfg["epochs"]
             cfg.evaluation = dict(interval=eval_period, metric='hmean-iou', save_best='auto', rule='greater')
+            cfg.optimizer = dict(type='SGD', lr=0.007, momentum=0.9, weight_decay=0.0001)
+
+            #cfg.dataset_type = 'IcdarDataset'
+            cfg.data_root = str(Path(param.cfg["dataset_folder"] + "/dataset"))
+            #cfg.data.train.datasets[0].type = cfg.dataset_type
+            cfg.data.train.datasets[0].ann_file = str(Path(cfg.data_root) / 'instances_train.json')
+            cfg.data.train.datasets[0].img_prefix = param.cfg["dataset_folder"]
+            #cfg.data.test.datasets[0].type = cfg.dataset_type
+            cfg.data.test.datasets[0].ann_file = str(Path(cfg.data_root) / 'instances_test.json')
+            cfg.data.test.datasets[0].img_prefix = param.cfg["dataset_folder"]
+            #cfg.data.val.datasets[0].type = cfg.dataset_type
+            cfg.data.val.datasets[0].ann_file = str(Path(cfg.data_root) / 'instances_test.json')
+            cfg.data.val.datasets[0].img_prefix = param.cfg["dataset_folder"]
+            cfg.data.samples_per_gpu = param.cfg["batch_size"]
+            cfg.data.workers_per_gpu = 0
+            cfg.load_from = param.cfg["weights"] if param.cfg["pretrain"] else None
 
         else:
-            config = param.cfg["custom_model"]
+            config = param.cfg["custom_cfg"]
             cfg = Config.fromfile(config)
-
+        gpus = 1
+        launcher = "none"
+        seed = None
+        deterministic = True
         no_validate = cfg.evaluation.interval <= 0
-        cfg.dataset_type = 'IcdarDataset'
-        cfg.data_root = str(Path(param.cfg["dataset_folder"] + "/dataset"))
-        cfg.data.train.type = cfg.dataset_type
-        cfg.data.train.ann_file = str(Path(cfg.data_root) / 'instances_train.json')
-        cfg.data.train.img_prefix = param.cfg["dataset_folder"]
-        cfg.data.test.type = cfg.dataset_type
-        cfg.data.test.ann_file = str(Path(cfg.data_root) / 'instances_test.json')
-        cfg.data.test.img_prefix = param.cfg["dataset_folder"]
-        cfg.data.val.type = cfg.dataset_type
-        cfg.data.val.ann_file = str(Path(cfg.data_root) / 'instances_test.json')
-        cfg.data.val.img_prefix = param.cfg["dataset_folder"]
-        cfg.data.samples_per_gpu = param.cfg["batch_size"]
-        cfg.data.workers_per_gpu = 0
-        cfg.load_from = param.cfg["pretrain"] if param.cfg["pretrain"] != "" else None
+
         # import modules from string list.
         if cfg.get('custom_imports', None):
             from mmcv.utils import import_modules_from_strings
@@ -225,26 +231,14 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         meta['seed'] = seed
         meta['exp_name'] = osp.basename(config)
 
+        datasets = [build_dataset(cfg.data.train)]
+
         model = build_detector(
             cfg.model,
             train_cfg=cfg.get('train_cfg'),
             test_cfg=cfg.get('test_cfg'))
         model.init_weights()
 
-        datasets = [build_dataset(cfg.data.train)]
-        if len(cfg.workflow) == 2:
-            val_dataset = copy.deepcopy(cfg.data.val)
-            if cfg.data.train['type'] == 'ConcatDataset':
-                train_pipeline = cfg.data.train['datasets'][0].pipeline
-            else:
-                train_pipeline = cfg.data.train.pipeline
-
-            if val_dataset['type'] == 'ConcatDataset':
-                for dataset in val_dataset['datasets']:
-                    dataset.pipeline = train_pipeline
-            else:
-                val_dataset.pipeline = train_pipeline
-            datasets.append(build_dataset(val_dataset))
         if cfg.checkpoint_config is not None:
             # save mmdet version, config file content and class names in
             # checkpoints as meta data
