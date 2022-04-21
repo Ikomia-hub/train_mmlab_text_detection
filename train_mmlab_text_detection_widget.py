@@ -115,14 +115,12 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
     def on_expert_mode_change(self, int):
         self.label_model.setVisible(self.check_expert.isChecked())
         self.browse_cfg_file.setVisible(self.check_expert.isChecked())
-        self.label_pretrain.setVisible(self.check_expert.isChecked())
-        self.browse_pretrain_file.setVisible(self.check_expert.isChecked())
 
-        self.spin_batch.setVisible(not (self.check_expert.isChecked()))
-        self.spin_epochs.setVisible(not (self.check_expert.isChecked()))
-        self.spin_eval_period.setVisible(not (self.check_expert.isChecked()))
-        self.combo_model.setVisible(not (self.check_expert.isChecked()))
-        self.combo_config.setVisible(not (self.check_expert.isChecked()))
+        self.spin_batch.setVisible(not self.check_expert.isChecked())
+        self.spin_epochs.setVisible(not self.check_expert.isChecked())
+        self.spin_eval_period.setVisible(not self.check_expert.isChecked())
+        self.combo_model.setVisible(not self.check_expert.isChecked())
+        self.combo_config.setVisible(not self.check_expert.isChecked())
 
     def on_combo_model_changed(self, int):
         if self.combo_model.currentText() != "":
@@ -141,7 +139,6 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
                 for experiment_name in self.available_cfg_ckpt.keys():
                     self.combo_config.addItem(experiment_name)
                     config_names.append(experiment_name)
-                print(self.parameters.cfg["cfg"])
                 selected_cfg = self.parameters.cfg["cfg"].replace(".py", "")
                 if selected_cfg in config_names:
                     self.combo_config.setCurrentText(selected_cfg)

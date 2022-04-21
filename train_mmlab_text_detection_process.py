@@ -56,29 +56,29 @@ class TrainMmlabTextDetectionParam(TaskParam):
         self.cfg["cfg"] = "dbnet_r50dcnv2_fpnc_1200e_icdar2015.py"
         self.cfg["weights"] = "https://download.openmmlab.com/mmocr/textdet/dbnet" \
                               "/dbnet_r50dcnv2_fpnc_sbn_1200e_icdar2015_20211025-9fe3b590.pth "
+        self.cfg["custom_cfg"] = ""
+        self.cfg["pretrain"] = True
         self.cfg["epochs"] = 10
         self.cfg["batch_size"] = 4
         self.cfg["dataset_split_ratio"] = 90
         self.cfg["output_folder"] = os.path.dirname(os.path.realpath(__file__)) + "/runs/"
         self.cfg["eval_period"] = 1
-        self.cfg["pretrain"] = True
         self.cfg["dataset_folder"] = os.path.dirname(os.path.realpath(__file__))
         self.cfg["expert_mode"] = False
-        self.cfg["custom_cfg"] = ""
 
     def setParamMap(self, param_map):
         self.cfg["model_name"] = param_map["model_name"]
         self.cfg["cfg"] = param_map["cfg"]
+        self.cfg["custom_cfg"] = param_map["custom_cfg"]
+        self.cfg["weights"] = param_map["weights"]
+        self.cfg["pretrain"] = distutils.util.strtobool(param_map["pretrain"])
         self.cfg["epochs"] = int(param_map["epochs"])
         self.cfg["batch_size"] = int(param_map["batch_size"])
         self.cfg["dataset_split_ratio"] = int(param_map["dataset_split_ratio"])
         self.cfg["output_folder"] = param_map["output_folder"]
         self.cfg["eval_period"] = int(param_map["eval_period"])
-        self.cfg["pretrain"] = distutils.util.strtobool(param_map["pretrain"])
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
         self.cfg["expert_mode"] = distutils.util.strtobool(param_map["expert_mode"])
-        self.cfg["custom_cfg"] = param_map["custom_cfg"]
-        self.cfg["pretrain"] = distutils.util.strtobool(param_map["pretrain"])
 
 
 # --------------------
