@@ -177,7 +177,8 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         seed = None
         deterministic = True
         no_validate = cfg.evaluation.interval <= 0
-
+        # save only best and last checkpoint
+        cfg.checkpoint_config = None
         # import modules from string list.
         if cfg.get('custom_imports', None):
             from mmcv.utils import import_modules_from_strings
@@ -239,12 +240,6 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
             test_cfg=cfg.get('test_cfg'))
         model.init_weights()
 
-        if cfg.checkpoint_config is not None:
-            # save mmdet version, config file content and class names in
-            # checkpoints as meta data
-            cfg.checkpoint_config.meta = dict(
-                mmocr_version=__version__ + get_git_hash()[:7],
-                CLASSES=datasets[0].CLASSES)
         # add an attribute for visualization convenience
         model.CLASSES = datasets[0].CLASSES
 
