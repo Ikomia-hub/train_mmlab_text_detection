@@ -14,6 +14,7 @@ from mmcv.runner.dist_utils import master_only
 class UserStop(Exception):
     pass
 
+
 # Define custom hook to stop process when user uses stop button and to save last checkpoint
 try:
     @HOOKS.register_module()
@@ -30,7 +31,7 @@ try:
         def after_train_iter(self, runner):
             # Check if training must be stopped and save last model
             if self.stop():
-                runner.save_checkpoint(self.output_folder,"latest.pth",create_symlink=False)
+                runner.save_checkpoint(self.output_folder, "latest.pth", create_symlink=False)
                 raise UserStop
 except:
     print("CustomHook already registered")
@@ -58,7 +59,7 @@ try:
                      reset_flag=False,
                      by_epoch=False):
             super(CustomMlflowLoggerHook, self).__init__(interval, ignore_last,
-                                                   reset_flag, by_epoch)
+                                                         reset_flag, by_epoch)
             self.log_metrics = log_metrics
 
         @master_only
@@ -104,18 +105,34 @@ def fill_dict(json_dict, sample, img, gt, id, id_annot):
                                 'width': sample['width'],
                                 'id': id})
     for annot in sample['annotations']:
-        poly = annot['segmentation_poly']
-        if len(poly[0]) > 1:
+        if 'bbox' in annot:
             annot_to_write = {}
             annot_to_write['iscrowd'] = 0
             annot_to_write['category_id'] = 0
-            annot_to_write['bbox'] = polygone_to_bbox_xywh(poly[0])
-            annot_to_write['segmentation'] = [poly[0].tolist()]
-            annot_to_write['area'] = area(np.array(poly[0].reshape(-1, 2)))
+            bbox = annot['bbox']
+            x, y, w, h = bbox
+            annot_to_write['bbox'] = bbox
+            annot_to_write['segmentation'] = [[x, y, x + w, y, x + w, y + h, x, y + h]]
+            annot_to_write['area'] = w * h
             annot_to_write['image_id'] = id
             annot_to_write['id'] = id_annot
             json_dict['annotations'].append(annot_to_write)
             id_annot += 1
+
+        elif 'segmentation_poly' in annot:
+            poly = annot['segmentation_poly']
+            if len(poly):
+                if len(poly[0]) > 1:
+                    annot_to_write = {}
+                    annot_to_write['iscrowd'] = 0
+                    annot_to_write['category_id'] = 0
+                    annot_to_write['bbox'] = polygone_to_bbox_xywh(poly[0])
+                    annot_to_write['segmentation'] = [poly[0].tolist()]
+                    annot_to_write['area'] = area(np.array(poly[0].reshape(-1, 2)))
+                    annot_to_write['image_id'] = id
+                    annot_to_write['id'] = id_annot
+                    json_dict['annotations'].append(annot_to_write)
+                    id_annot += 1
     return id_annot
 
 
@@ -171,9 +188,15 @@ def prepare_dataset(ikdata, save_dir, split_ratio):
 def write_annot(sample, dst_file):
     str_to_write = ''
     for annot in sample['annotations']:
-        for poly in annot['segmentation_poly']:
+        if 'bbox' in annot:
+            x, y, w, h = annot['bbox']
+            poly = [x, y, x + w, y, x + w, y + h, x, y + h]
             for number in poly:
                 str_to_write += str(int(number)) + ','
+        else:
+            for poly in annot['segmentation_poly']:
+                for number in poly:
+                    str_to_write += str(int(number)) + ','
         str_to_write += annot['text']
         str_to_write += '\n'
     with open(dst_file, 'w') as f:
