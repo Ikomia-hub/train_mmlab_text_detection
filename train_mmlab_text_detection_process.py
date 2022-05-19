@@ -33,9 +33,7 @@ import mmcv
 import torch
 from mmcv import Config
 from mmcv.runner import get_dist_info, init_dist, set_random_seed
-from mmcv.utils import get_git_hash
 
-from mmocr import __version__
 from mmocr.apis import train_detector
 from mmocr.datasets import build_dataset
 from mmocr.models import build_detector
@@ -80,6 +78,27 @@ class TrainMmlabTextDetectionParam(TaskParam):
         self.cfg["eval_period"] = int(param_map["eval_period"])
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
         self.cfg["expert_mode"] = distutils.util.strtobool(param_map["expert_mode"])
+
+    def getParamMap(self):
+        # Send parameters values to Ikomia application
+        # Create the specific dict structure (string container)
+        param_map = core.ParamMap()
+        # Example : paramMap["windowSize"] = str(self.windowSize)
+        param_map["model_name"] = self.cfg["model_name"]
+        param_map["cfg"] = self.cfg["cfg"]
+        param_map["custom_cfg"] = self.cfg["custom_cfg"]
+        param_map["weights"] = self.cfg["weights"]
+        param_map["pretrain"] = str(self.cfg["pretrain"])
+        param_map["epochs"] = str(self.cfg["epochs"])
+        param_map["batch_size"] = str(self.cfg["batch_size"])
+        param_map["dataset_split_ratio"] = str(self.cfg["dataset_split_ratio"])
+        param_map["output_folder"] = self.cfg["output_folder"]
+        param_map["eval_period"] = str(self.cfg["eval_period"])
+        param_map["dataset_folder"] = self.cfg["dataset_folder"]
+        param_map["expert_mode"] = str(self.cfg["expert_mode"])
+
+        return param_map
+
 
 
 # --------------------
