@@ -19,6 +19,7 @@
 from ikomia import core, dataprocess
 from ikomia.core.task import TaskParam
 from ikomia.dnn import datasetio, dnntrain
+from ikomia.core import config as ikcfg
 import copy
 from datetime import datetime
 import os
@@ -132,7 +133,7 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
         # Tensorboard
-        tb_logdir = str(Path(self.getTensorboardLogDir()) / str_datetime)
+        tb_logdir = os.path.join(ikcfg.main_cfg["tensorboard"]["log_uri"], str_datetime)
 
         # Transform Ikomia dataset to ICDAR compatible dataset if needed
         prepare_dataset(input.data, param.cfg["dataset_folder"], param.cfg["dataset_split_ratio"] / 100)
@@ -152,17 +153,13 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
                 ])
             cfg.total_epochs = param.cfg["epochs"]
             cfg.evaluation = dict(interval=eval_period, metric='hmean-iou', save_best='auto', rule='greater')
-            cfg.optimizer = dict(type='SGD', lr=0.007, momentum=0.9, weight_decay=0.0001)
+            cfg.optimizer.lr = cfg.optimizer.lr / cfg.data.samples_per_gpu * param.cfg["batch_size"]
 
-            #cfg.dataset_type = 'IcdarDataset'
             cfg.data_root = str(Path(param.cfg["dataset_folder"] + "/dataset"))
-            #cfg.data.train.datasets[0].type = cfg.dataset_type
             cfg.data.train.datasets[0].ann_file = str(Path(cfg.data_root) / 'instances_train.json')
             cfg.data.train.datasets[0].img_prefix = param.cfg["dataset_folder"]
-            #cfg.data.test.datasets[0].type = cfg.dataset_type
             cfg.data.test.datasets[0].ann_file = str(Path(cfg.data_root) / 'instances_test.json')
             cfg.data.test.datasets[0].img_prefix = param.cfg["dataset_folder"]
-            #cfg.data.val.datasets[0].type = cfg.dataset_type
             cfg.data.val.datasets[0].ann_file = str(Path(cfg.data_root) / 'instances_test.json')
             cfg.data.val.datasets[0].img_prefix = param.cfg["dataset_folder"]
             cfg.data.samples_per_gpu = param.cfg["batch_size"]
