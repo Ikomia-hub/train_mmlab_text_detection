@@ -24,7 +24,7 @@ import copy
 from datetime import datetime
 import os
 from pathlib import Path
-from train_mmlab_text_detection.utils import prepare_dataset, UserStop
+from train_mmlab_text_detection.utils import prepare_dataset, UserStop, register_mmlab_modules
 import os.path as osp
 import time
 import distutils
@@ -109,6 +109,8 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
 
     def __init__(self, name, param):
         dnntrain.TrainProcess.__init__(self, name, param)
+
+        register_mmlab_modules()
 
         # Variable to check if the training must be stopped by user
         self.stop_train = False

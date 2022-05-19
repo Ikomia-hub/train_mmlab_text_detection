@@ -15,9 +15,9 @@ class UserStop(Exception):
     pass
 
 
-# Define custom hook to stop process when user uses stop button and to save last checkpoint
-try:
-    @HOOKS.register_module()
+def register_mmlab_modules():
+    # Define custom hook to stop process when user uses stop button and to save last checkpoint
+    @HOOKS.register_module(force=True)
     class CustomHook(Hook):
         # Check at each iter if the training must be stopped
         def __init__(self, stop, output_folder, emitStepProgress):
@@ -33,11 +33,8 @@ try:
             if self.stop():
                 runner.save_checkpoint(self.output_folder, "latest.pth", create_symlink=False)
                 raise UserStop
-except:
-    print("CustomHook already registered")
 
-try:
-    @HOOKS.register_module()
+    @HOOKS.register_module(force=True)
     class CustomMlflowLoggerHook(LoggerHook):
         """Class to log metrics and (optionally) a trained model to MLflow.
         It requires `MLflow`_ to be installed.
@@ -67,8 +64,6 @@ try:
             tags = self.get_loggable_tags(runner)
             if tags:
                 self.log_metrics(tags, step=self.get_iter(runner))
-except:
-    print("MlflowLoggerHook already registered")
 
 
 def area(pts):
