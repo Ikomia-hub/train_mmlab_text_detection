@@ -173,7 +173,7 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
                     dict(type='TensorboardLoggerHook', log_dir=tb_logdir)
                 ])
             cfg.total_epochs = param.cfg["epochs"]
-            cfg.evaluation = dict(interval=eval_period, metric='hmean-iou', save_best='auto', rule='greater')
+            cfg.evaluation = dict(interval=eval_period, metric=["hmean-iou"], save_best="0_hmean-iou:hmean", rule="greater")
             cfg.optimizer.lr = cfg.optimizer.lr / cfg.data.samples_per_gpu * param.cfg["batch_size"]
 
             cfg.data_root = str(Path(param.cfg["dataset_folder"] + "/dataset"))
