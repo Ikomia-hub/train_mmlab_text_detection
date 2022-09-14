@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from ikomia import core, dataprocess
+from ikomia import utils, core, dataprocess
 from ikomia.core.task import TaskParam
 from ikomia.dnn import datasetio, dnntrain
 from ikomia.core import config as ikcfg
@@ -27,20 +27,14 @@ from pathlib import Path
 from train_mmlab_text_detection.utils import prepare_dataset, UserStop, register_mmlab_modules
 import os.path as osp
 import time
-import distutils
-
 import mmcv
 import torch
 from mmcv import Config
 from mmcv.runner import get_dist_info, init_dist, set_random_seed
-
 from mmocr.apis import train_detector
 from mmocr.datasets import build_dataset
 from mmocr.models import build_detector
 from mmocr.utils import collect_env, get_root_logger
-
-
-# Your imports below
 
 
 # --------------------
@@ -70,14 +64,14 @@ class TrainMmlabTextDetectionParam(TaskParam):
         self.cfg["cfg"] = param_map["cfg"]
         self.cfg["custom_cfg"] = param_map["custom_cfg"]
         self.cfg["weights"] = param_map["weights"]
-        self.cfg["pretrain"] = distutils.util.strtobool(param_map["pretrain"])
+        self.cfg["pretrain"] = utils.strtobool(param_map["pretrain"])
         self.cfg["epochs"] = int(param_map["epochs"])
         self.cfg["batch_size"] = int(param_map["batch_size"])
         self.cfg["dataset_split_ratio"] = int(param_map["dataset_split_ratio"])
         self.cfg["output_folder"] = param_map["output_folder"]
         self.cfg["eval_period"] = int(param_map["eval_period"])
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
-        self.cfg["expert_mode"] = distutils.util.strtobool(param_map["expert_mode"])
+        self.cfg["expert_mode"] = utils.strtobool(param_map["expert_mode"])
 
     def getParamMap(self):
         # Send parameters values to Ikomia application
@@ -98,7 +92,6 @@ class TrainMmlabTextDetectionParam(TaskParam):
         param_map["expert_mode"] = str(self.cfg["expert_mode"])
 
         return param_map
-
 
 
 # --------------------
