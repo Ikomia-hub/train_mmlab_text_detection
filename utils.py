@@ -6,9 +6,13 @@ import os
 from pathlib import Path
 import random
 import shutil
-from mmcv.runner.hooks import HOOKS, Hook
-from mmcv.runner.hooks import LoggerHook
-from mmcv.runner.dist_utils import master_only
+from mmengine.registry import HOOKS
+from mmengine.hooks import Hook
+from mmengine.hooks import LoggerHook
+from mmengine.dist import master_only
+from typing import Dict, Optional, Sequence, Union
+
+DATA_BATCH = Optional[Union[dict, tuple, list]]
 
 
 class UserStop(Exception):
@@ -28,7 +32,12 @@ def register_mmlab_modules():
         def after_epoch(self, runner):
             self.emitStepProgress()
 
-        def after_train_iter(self, runner):
+        def _after_iter(self,
+                        runner,
+                        batch_idx: int,
+                        data_batch: DATA_BATCH = None,
+                        outputs: Optional[Union[Sequence, dict]] = None,
+                        mode: str = 'train') -> None:
             # Check if training must be stopped and save last model
             if self.stop():
                 runner.save_checkpoint(self.output_folder, "latest.pth", create_symlink=False)
@@ -53,10 +62,9 @@ def register_mmlab_modules():
                      log_metrics,
                      interval=10,
                      ignore_last=True,
-                     reset_flag=False,
                      by_epoch=False):
-            super(CustomMlflowLoggerHook, self).__init__(interval, ignore_last,
-                                                         reset_flag, by_epoch)
+            super(CustomMlflowLoggerHook, self).__init__(interval=interval, ignore_last=ignore_last,
+                                                         log_metric_by_epoch=by_epoch)
             self.log_metrics = log_metrics
 
         @master_only
@@ -93,41 +101,34 @@ def polygone_to_bbox_xywh(pts):
     return [x, y, w, h]
 
 
-def fill_dict(json_dict, sample, img, id, id_annot):
-    json_dict['images'].append({'file_name': img,
-                                'height': sample['height'],
-                                'width': sample['width'],
-                                'id': id})
+def fill_dict(json_dict, sample, img):
+    instances = []
     for annot in sample['annotations']:
         if 'bbox' in annot:
             annot_to_write = {}
-            annot_to_write['iscrowd'] = 0
-            annot_to_write['category_id'] = 0
-            bbox = annot['bbox']
+            annot_to_write['ignore'] = False
+            annot_to_write['bbox_label'] = 0
+            bbox = [int(c) for c in annot['bbox']]
             x, y, w, h = bbox
             annot_to_write['bbox'] = bbox
-            annot_to_write['segmentation'] = [[x, y, x + w, y, x + w, y + h, x, y + h]]
-            annot_to_write['area'] = w * h
-            annot_to_write['image_id'] = id
-            annot_to_write['id'] = id_annot
-            json_dict['annotations'].append(annot_to_write)
-            id_annot += 1
+            annot_to_write['polygon'] = [x, y, x + w, y, x + w, y + h, x, y + h]
+            instances.append(annot_to_write)
 
         elif 'segmentation_poly' in annot:
             poly = annot['segmentation_poly']
             if len(poly):
-                if len(poly[0]) > 1:
+                poly = [int(c) for c in poly[0]]
+                if len(poly) > 1:
                     annot_to_write = {}
-                    annot_to_write['iscrowd'] = 0
-                    annot_to_write['category_id'] = 0
-                    annot_to_write['bbox'] = polygone_to_bbox_xywh(poly[0])
-                    annot_to_write['segmentation'] = [poly[0].tolist() if isinstance(poly[0], np.ndarray) else poly[0]]
-                    annot_to_write['area'] = area(np.array(poly[0]).reshape(-1, 2))
-                    annot_to_write['image_id'] = id
-                    annot_to_write['id'] = id_annot
-                    json_dict['annotations'].append(annot_to_write)
-                    id_annot += 1
-    return id_annot
+                    annot_to_write['ignore'] = 0
+                    annot_to_write['bbox_label'] = 0
+                    annot_to_write['bbox'] = polygone_to_bbox_xywh(poly)
+                    annot_to_write['polygon'] = poly.tolist() if isinstance(poly, np.ndarray) else poly
+                    instances.append(annot_to_write)
+    json_dict['data_list'].append({'img_path': img,
+                                   'height': sample['height'],
+                                   'width': sample['width'],
+                                   'instances': instances})
 
 
 def prepare_dataset(ikdata, save_dir, split_ratio):
@@ -158,9 +159,17 @@ def prepare_dataset(ikdata, save_dir, split_ratio):
     images = ikdata['images']
     n = len(images)
     train_idx = random.sample(range(n), int(n * split_ratio))
-    json_train = {'images': [], 'categories': [{'id': 0, 'name': 'text'}], 'annotations': []}
+    json_train = \
+        {
+            "metainfo":
+                {
+                    "dataset_type": "TextDetDataset",
+                    "task_name": "textdet",
+                    "category": [{"id": 0, "name": "text"}]
+                },
+            'data_list': []
+        }
     json_test = copy.deepcopy(json_train)
-    id_annot = 0
     for id, sample in enumerate(images):
         basename = os.path.basename(sample['filename'])
         img = os.path.join(imgs_dir, basename)
@@ -168,7 +177,7 @@ def prepare_dataset(ikdata, save_dir, split_ratio):
             current_json = json_train
         else:
             current_json = json_test
-        id_annot = fill_dict(current_json, sample, img, id, id_annot)
+        fill_dict(current_json, sample, img)
 
         shutil.copyfile(sample['filename'], img)
     with open(paths['dataset'] + '/instances_train.json', 'w') as f:
@@ -178,20 +187,3 @@ def prepare_dataset(ikdata, save_dir, split_ratio):
 
     print("Dataset prepared!")
 
-
-def write_annot(sample, dst_file):
-    str_to_write = ''
-    for annot in sample['annotations']:
-        if 'bbox' in annot:
-            x, y, w, h = annot['bbox']
-            poly = [x, y, x + w, y, x + w, y + h, x, y + h]
-            for number in poly:
-                str_to_write += str(int(number)) + ','
-        else:
-            for poly in annot['segmentation_poly']:
-                for number in poly:
-                    str_to_write += str(int(number)) + ','
-        str_to_write += annot['text']
-        str_to_write += '\n'
-    with open(dst_file, 'w') as f:
-        f.write(str_to_write)

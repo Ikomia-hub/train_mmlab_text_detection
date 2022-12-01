@@ -1,98 +1,28 @@
-img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-max_scale, min_scale = 1024, 512
-
-train_pipeline = [
-    dict(type='LoadAnnotations'),
-    dict(
-        type='ResizeNoImg', img_scale=(max_scale, min_scale), keep_ratio=True),
-    dict(type='KIEFormatBundle'),
-    dict(
-        type='Collect',
-        keys=['img', 'relations', 'texts', 'gt_bboxes', 'gt_labels'],
-        meta_keys=('filename', 'ori_texts'))
-]
-test_pipeline = [
-    dict(type='LoadAnnotations'),
-    dict(
-        type='ResizeNoImg', img_scale=(max_scale, min_scale), keep_ratio=True),
-    dict(type='KIEFormatBundle'),
-    dict(
-        type='Collect',
-        keys=['img', 'relations', 'texts', 'gt_bboxes'],
-        meta_keys=('filename', 'ori_texts', 'img_norm_cfg', 'ori_filename',
-                   'img_shape'))
+_base_ = [
+    '../_base_/default_runtime.py',
+    '../_base_/datasets/wildreceipt.py',
+    '../_base_/schedules/schedule_adam_60e.py',
+    '_base_sdmgr_novisual.py',
 ]
 
-dataset_type = 'KIEDataset'
-data_root = 'data/wildreceipt'
+wildreceipt_train = _base_.wildreceipt_train
+wildreceipt_train.pipeline = _base_.train_pipeline
+wildreceipt_test = _base_.wildreceipt_test
+wildreceipt_test.pipeline = _base_.test_pipeline
 
-loader = dict(
-    type='HardDiskLoader',
-    repeat=1,
-    parser=dict(
-        type='LineJsonParser',
-        keys=['file_name', 'height', 'width', 'annotations']))
+train_dataloader = dict(
+    batch_size=4,
+    num_workers=1,
+    persistent_workers=True,
+    sampler=dict(type='DefaultSampler', shuffle=True),
+    dataset=wildreceipt_train)
 
-train = dict(
-    type=dataset_type,
-    ann_file=f'{data_root}/train.txt',
-    pipeline=train_pipeline,
-    img_prefix=data_root,
-    loader=loader,
-    dict_file=f'{data_root}/dict.txt',
-    test_mode=False)
-test = dict(
-    type=dataset_type,
-    ann_file=f'{data_root}/test.txt',
-    pipeline=test_pipeline,
-    img_prefix=data_root,
-    loader=loader,
-    dict_file=f'{data_root}/dict.txt',
-    test_mode=True)
+val_dataloader = dict(
+    batch_size=1,
+    num_workers=1,
+    persistent_workers=True,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=wildreceipt_test)
+test_dataloader = val_dataloader
 
-data = dict(
-    samples_per_gpu=4,
-    workers_per_gpu=1,
-    val_dataloader=dict(samples_per_gpu=1),
-    test_dataloader=dict(samples_per_gpu=1),
-    train=train,
-    val=test,
-    test=test)
-
-evaluation = dict(
-    interval=1,
-    metric='macro_f1',
-    metric_options=dict(
-        macro_f1=dict(
-            ignores=[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 25])))
-
-model = dict(
-    type='SDMGR',
-    backbone=dict(type='UNet', base_channels=16),
-    bbox_head=dict(
-        type='SDMGRHead', visual_dim=16, num_chars=92, num_classes=26),
-    visual_modality=False,
-    train_cfg=None,
-    test_cfg=None,
-    class_list=f'{data_root}/class_list.txt')
-
-optimizer = dict(type='Adam', weight_decay=0.0001)
-optimizer_config = dict(grad_clip=None)
-lr_config = dict(
-    policy='step',
-    warmup='linear',
-    warmup_iters=1,
-    warmup_ratio=1,
-    step=[40, 50])
-total_epochs = 60
-
-checkpoint_config = dict(interval=1)
-log_config = dict(interval=50, hooks=[dict(type='TextLoggerHook')])
-dist_params = dict(backend='nccl')
-log_level = 'INFO'
-load_from = None
-resume_from = None
-workflow = [('train', 1)]
-
-find_unused_parameters = True
+auto_scale_lr = dict(base_batch_size=4)
