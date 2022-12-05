@@ -3,14 +3,13 @@ from scipy.linalg import det
 import json
 import copy
 import os
-from pathlib import Path
 import random
 import shutil
 from mmengine.registry import HOOKS
 from mmengine.hooks import Hook
 from mmengine.hooks import LoggerHook
 from mmengine.dist import master_only
-from typing import Dict, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 DATA_BATCH = Optional[Union[dict, tuple, list]]
 
