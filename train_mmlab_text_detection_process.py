@@ -29,7 +29,6 @@ from train_mmlab_text_detection.utils import prepare_dataset, UserStop, register
 from mmengine.config import Config, ConfigDict
 from mmengine.logging import print_log
 from mmengine.runner import Runner
-from mmengine.dist import master_only
 
 from mmocr.utils import register_all_modules
 from typing import Union, Dict
