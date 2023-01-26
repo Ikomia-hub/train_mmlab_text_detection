@@ -39,11 +39,11 @@ def register_mmlab_modules():
                         mode: str = 'train') -> None:
             # Check if training must be stopped and save last model
             if self.stop():
-                runner.save_checkpoint(self.output_folder, "latest.pth", create_symlink=False)
+                runner.save_checkpoint(self.output_folder, "latest.pth")
                 raise UserStop
 
     @HOOKS.register_module(force=True)
-    class CustomMlflowLoggerHook(LoggerHook):
+    class CustomLoggerHook(LoggerHook):
         """Class to log metrics and (optionally) a trained model to MLflow.
         It requires `MLflow`_ to be installed.
         Args:
@@ -59,18 +59,76 @@ def register_mmlab_modules():
 
         def __init__(self,
                      log_metrics,
-                     interval=10,
-                     ignore_last=True,
-                     by_epoch=False):
-            super(CustomMlflowLoggerHook, self).__init__(interval=interval, ignore_last=ignore_last,
-                                                         log_metric_by_epoch=by_epoch)
+                     interval=10):
+            super(CustomLoggerHook, self).__init__(interval=interval, log_metric_by_epoch=True)
             self.log_metrics = log_metrics
 
-        @master_only
-        def log(self, runner):
-            tags = self.get_loggable_tags(runner)
-            if tags:
-                self.log_metrics(tags, step=self.get_iter(runner))
+        def after_val_epoch(self,
+                            runner,
+                            metrics=None) -> None:
+            """All subclasses should override this method, if they need any
+            operations after each validation epoch.
+
+            Args:
+                runner (Runner): The runner of the validation process.
+                metrics (Dict[str, float], optional): Evaluation results of all
+                    metrics on validation dataset. The keys are the names of the
+                    metrics, and the values are corresponding results.
+            """
+            tag, log_str = runner.log_processor.get_log_after_epoch(
+                runner, len(runner.val_dataloader), 'val')
+            runner.logger.info(log_str)
+            if self.log_metric_by_epoch:
+                # when `log_metric_by_epoch` is set to True, it's expected
+                # that validation metric can be logged by epoch rather than
+                # by iter. At the same time, scalars related to time should
+                # still be logged by iter to avoid messy visualized result.
+                # see details in PR #278.
+                metric_tags = {k: v for k, v in tag.items() if 'time' not in k}
+                runner.visualizer.add_scalars(
+                    metric_tags, step=runner.epoch, file_path=self.json_log_path)
+                self.log_metrics(tag, step=runner.epoch)
+            else:
+                runner.visualizer.add_scalars(
+                    tag, step=runner.iter, file_path=self.json_log_path)
+                self.log_metrics(tag, step=runner.iter + 1)
+
+        def after_train_iter(self,
+                             runner,
+                             batch_idx: int,
+                             data_batch=None,
+                             outputs=None):
+            """Record logs after training iteration.
+
+            Args:
+                runner (Runner): The runner of the training process.
+                batch_idx (int): The index of the current batch in the train loop.
+                data_batch (dict tuple or list, optional): Data from dataloader.
+                outputs (dict, optional): Outputs from model.
+            """
+            # Print experiment name every n iterations.
+            if self.every_n_train_iters(
+                    runner, self.interval_exp_name) or (self.end_of_epoch(
+                runner.train_dataloader, batch_idx)):
+                exp_info = f'Exp name: {runner.experiment_name}'
+                runner.logger.info(exp_info)
+            if self.every_n_inner_iters(batch_idx, self.interval):
+                tag, log_str = runner.log_processor.get_log_after_iter(
+                    runner, batch_idx, 'train')
+            elif (self.end_of_epoch(runner.train_dataloader, batch_idx)
+                  and not self.ignore_last):
+                # `runner.max_iters` may not be divisible by `self.interval`. if
+                # `self.ignore_last==True`, the log of remaining iterations will
+                # be recorded (Epoch [4][1000/1007], the logs of 998-1007
+                # iterations will be recorded).
+                tag, log_str = runner.log_processor.get_log_after_iter(
+                    runner, batch_idx, 'train')
+            else:
+                return
+            runner.logger.info(log_str)
+            runner.visualizer.add_scalars(
+                tag, step=runner.iter + 1, file_path=self.json_log_path)
+            self.log_metrics(tag, step=runner.iter + 1)
 
 
 def area(pts):

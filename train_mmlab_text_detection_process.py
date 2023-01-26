@@ -32,6 +32,7 @@ from mmengine.runner import Runner
 
 from mmocr.utils import register_all_modules
 from typing import Union, Dict
+from mmengine.visualization import Visualizer
 
 ConfigType = Union[Dict, Config, ConfigDict]
 
@@ -39,7 +40,7 @@ ConfigType = Union[Dict, Config, ConfigDict]
 class MyRunner(Runner):
 
     @classmethod
-    def from_custom_cfg(cls, cfg: ConfigType, custom_hooks: ConfigType) -> 'Runner':
+    def from_custom_cfg(cls, cfg: ConfigType, custom_hooks: ConfigType, visualizer) -> 'Runner':
         """Build a runner from config.
 
         Args:
@@ -73,7 +74,7 @@ class MyRunner(Runner):
             env_cfg=cfg.get('env_cfg'),  # type: ignore
             log_processor=cfg.get('log_processor'),
             log_level=cfg.get('log_level', 'INFO'),
-            visualizer=cfg.get('visualizer'),
+            visualizer=visualizer,
             default_scope=cfg.get('default_scope', 'mmengine'),
             randomness=cfg.get('randomness', dict(seed=None)),
             experiment_name=cfg.get('experiment_name'),
@@ -255,6 +256,11 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
 
         cfg.visualizer.vis_backends = [dict(type='TensorboardVisBackend', save_dir=tb_logdir)]
 
+        try:
+            visualizer = Visualizer.get_current_instance()
+        except:
+            visualizer = cfg.get('visualizer')
+
         # register all modules in mmdet into the registries
         # do not init the default scope here because it will be init in the runner
         register_all_modules(init_default_scope=False)
@@ -277,11 +283,11 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         custom_hooks = [
             dict(type='CustomHook', stop=self.get_stop, output_folder=str(self.output_folder),
                  emitStepProgress=self.emitStepProgress, priority='LOWEST'),
-            dict(type='CustomMlflowLoggerHook', log_metrics=self.log_metrics)
+            dict(type='CustomLoggerHook', log_metrics=self.log_metrics)
         ]
 
         # build the runner from config
-        runner = MyRunner.from_custom_cfg(cfg, custom_hooks)
+        runner = MyRunner.from_custom_cfg(cfg, custom_hooks, visualizer)
 
         # add custom hook to stop process and save the latest model each epoch
 
