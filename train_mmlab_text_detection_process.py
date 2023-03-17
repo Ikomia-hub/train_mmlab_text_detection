@@ -93,9 +93,9 @@ class TrainMmlabTextDetectionParam(TaskParam):
     def __init__(self):
         TaskParam.__init__(self)
         self.cfg["model_name"] = "dbnet"
-        self.cfg["cfg"] = "dbnet_r50dcnv2_fpnc_1200e_icdar2015.py"
-        self.cfg["weights"] = "https://download.openmmlab.com/mmocr/textdet/dbnet" \
-                              "/dbnet_r50dcnv2_fpnc_sbn_1200e_icdar2015_20211025-9fe3b590.pth "
+        self.cfg["cfg"] = "dbnet_resnet18_fpnc_1200e_icdar2015.py"
+        self.cfg["weights"] = "https://download.openmmlab.com/mmocr/textdet/dbnet/dbnet_resnet18_fpnc_1200e_icdar2015/" \
+                              "dbnet_resnet18_fpnc_1200e_icdar2015_20220825_221614-7c0e94f2.pth"
         self.cfg["custom_cfg"] = ""
         self.cfg["pretrain"] = True
         self.cfg["epochs"] = 10
@@ -106,7 +106,7 @@ class TrainMmlabTextDetectionParam(TaskParam):
         self.cfg["dataset_folder"] = os.path.dirname(os.path.realpath(__file__))
         self.cfg["expert_mode"] = False
 
-    def setParamMap(self, param_map):
+    def set_values(self, param_map):
         self.cfg["model_name"] = param_map["model_name"]
         self.cfg["cfg"] = param_map["cfg"]
         self.cfg["custom_cfg"] = param_map["custom_cfg"]
@@ -120,10 +120,10 @@ class TrainMmlabTextDetectionParam(TaskParam):
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
         self.cfg["expert_mode"] = utils.strtobool(param_map["expert_mode"])
 
-    def getParamMap(self):
+    def get_values(self):
         # Send parameters values to Ikomia application
         # Create the specific dict structure (string container)
-        param_map = core.ParamMap()
+        param_map = {}
         # Example : paramMap["windowSize"] = str(self.windowSize)
         param_map["model_name"] = self.cfg["model_name"]
         param_map["cfg"] = self.cfg["cfg"]
@@ -157,14 +157,14 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
 
         # Create parameters class
         if param is None:
-            self.setParam(TrainMmlabTextDetectionParam())
+            self.set_param_object(TrainMmlabTextDetectionParam())
         else:
-            self.setParam(copy.deepcopy(param))
+            self.set_param_object(copy.deepcopy(param))
 
-    def getProgressSteps(self, eltCount=1):
+    def get_progress_steps(self, eltCount=1):
         # Function returning the number of progress steps for this process
         # This is handled by the main progress bar of Ikomia application
-        param = self.getParam()
+        param = self.get_param_object()
         if param is not None:
             return param.cfg["epochs"]
         else:
@@ -172,16 +172,16 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
 
     def run(self):
         # Core function of your process
-        # Call beginTaskRun for initialization
-        self.beginTaskRun()
+        # Call begin_task_run for initialization
+        self.begin_task_run()
 
         self.stop_train = False
 
         # Get param
-        param = self.getParam()
+        param = self.get_param_object()
 
         # Get input dataset
-        input = self.getInput(0)
+        input = self.get_input(0)
 
         # Current datetime is used as folder name
         str_datetime = datetime.now().strftime("%d-%m-%YT%Hh%Mm%Ss")
@@ -190,8 +190,8 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
             self.problem = True
 
         # Output directory
-        self.output_folder = Path(param.cfg["output_folder"] + "/" + str_datetime)
-        self.output_folder.mkdir(parents=True, exist_ok=True)
+        self.output_folder = os.path.join(param.cfg["output_folder"], str_datetime)
+        os.makedirs(self.output_folder, exist_ok=True)
 
         # Tensorboard
         tb_logdir = os.path.join(ikcfg.main_cfg["tensorboard"]["log_uri"], str_datetime)
@@ -282,7 +282,7 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
 
         custom_hooks = [
             dict(type='CustomHook', stop=self.get_stop, output_folder=str(self.output_folder),
-                 emitStepProgress=self.emitStepProgress, priority='LOWEST'),
+                 emit_step_progress=self.emit_step_progress, priority='LOWEST'),
             dict(type='CustomLoggerHook', log_metrics=self.log_metrics)
         ]
 
@@ -296,8 +296,8 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         runner.train()
 
         print("Training finished!")
-        # Call endTaskRun to finalize process
-        self.endTaskRun()
+        # Call end_task_run to finalize process
+        self.end_task_run()
 
     def get_stop(self):
         return self.stop_train
@@ -317,7 +317,7 @@ class TrainMmlabTextDetectionFactory(dataprocess.CTaskFactory):
         dataprocess.CTaskFactory.__init__(self)
         # Set process information as string here
         self.info.name = "train_mmlab_text_detection"
-        self.info.shortDescription = "Training process for MMOCR from MMLAB in text detection"
+        self.info.short_description = "Training process for MMOCR from MMLAB in text detection"
         self.info.description = "Training process for MMOCR from MMLAB in text detection." \
                                 "You can choose a predefined model configuration from MMLAB's " \
                                 "model zoo or use custom models and custom pretrained weights " \
@@ -325,7 +325,7 @@ class TrainMmlabTextDetectionFactory(dataprocess.CTaskFactory):
         # relative path -> as displayed in Ikomia application process tree
         self.info.path = "Plugins/Python/Text"
         self.info.version = "1.0.0"
-        self.info.iconPath = "icons/mmlab.png"
+        self.info.icon_path = "icons/mmlab.png"
         self.info.authors = "Kuang, Zhanghui and Sun, Hongbin and Li, Zhizhong and Yue, Xiaoyu and Lin," \
                             " Tsui Hin and Chen, Jianyong and Wei, Huaqiang and Zhu, Yiqin and Gao, Tong and Zhang," \
                             " Wenwei and Chen, Kai and Zhang, Wayne and Lin, Dahua"
@@ -334,7 +334,7 @@ class TrainMmlabTextDetectionFactory(dataprocess.CTaskFactory):
         self.info.year = 2021
         self.info.license = "Apache-2.0 License"
         # URL of documentation
-        self.info.documentationLink = "https://mmocr.readthedocs.io/en/latest/"
+        self.info.documentation_link = "https://mmocr.readthedocs.io/en/latest/"
         # Code source repository
         self.info.repository = "https://github.com/open-mmlab/mmocr"
         # Keywords used for search

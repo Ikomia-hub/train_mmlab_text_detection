@@ -28,12 +28,12 @@ class IkomiaPlugin(dataprocess.CPluginProcessInterface):
     def __init__(self):
         dataprocess.CPluginProcessInterface.__init__(self)
 
-    def getProcessFactory(self):
+    def get_process_factory(self):
         # Instantiate process object
         from train_mmlab_text_detection.train_mmlab_text_detection_process import TrainMmlabTextDetectionFactory
         return TrainMmlabTextDetectionFactory()
 
-    def getWidgetFactory(self):
+    def get_widget_factory(self):
         # Instantiate associated widget object
         from train_mmlab_text_detection.train_mmlab_text_detection_widget import TrainMmlabTextDetectionWidgetFactory
         return TrainMmlabTextDetectionWidgetFactory()

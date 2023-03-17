@@ -110,7 +110,7 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         layout_ptr = qtconversion.PyQtToQt(self.grid_layout)
 
         # Set widget layout
-        self.setLayout(layout_ptr)
+        self.set_layout(layout_ptr)
 
     def on_expert_mode_change(self, int):
         self.label_model.setVisible(self.check_expert.isChecked())
@@ -145,7 +145,7 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
                 else:
                     self.combo_config.setCurrentText(list(self.available_cfg_ckpt.keys())[0])
 
-    def onApply(self):
+    def on_apply(self):
         # Apply button clicked slot
 
         # Get parameters from widget
@@ -161,9 +161,8 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
         self.parameters.cfg["pretrain"] = self.check_pretrain.isChecked()
         self.parameters.cfg["weights"] = self.available_cfg_ckpt[self.combo_config.currentText()]["ckpt"]
-
         # Send signal to launch the process
-        self.emitApply(self.parameters)
+        self.emit_apply(self.parameters)
 
 
 # --------------------

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def test(t, data_dict):
     logger.info("===== Test::train mmlab text detection =====")
-    input_dataset = t.getInput(0)
+    input_dataset = t.get_input(0)
     params = task.get_parameters(t)
     plugins_folder = ikomia.ik_registry.getPluginsDirectory()
     plugin_folder = os.path.join(plugins_folder, "Python", t.name)
