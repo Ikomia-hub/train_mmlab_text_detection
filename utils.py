@@ -18,6 +18,17 @@ class UserStop(Exception):
     pass
 
 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
+
 def register_mmlab_modules():
     # Define custom hook to stop process when user uses stop button and to save last checkpoint
     @HOOKS.register_module(force=True)
@@ -238,9 +249,9 @@ def prepare_dataset(ikdata, save_dir, split_ratio):
 
         shutil.copyfile(sample['filename'], img)
     with open(paths['dataset'] + '/instances_train.json', 'w') as f:
-        json.dump(json_train, f)
+        json.dump(json_train, f, cls=NpEncoder)
     with open(paths['dataset'] + '/instances_test.json', 'w') as f:
-        json.dump(json_test, f)
+        json.dump(json_test, f, cls=NpEncoder)
 
     print("Dataset prepared!")
 
