@@ -62,7 +62,7 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
 
         # Pretrain
         self.check_pretrain = pyqtutils.append_check(self.grid_layout, "Load mmocr pretrain",
-                                                     self.parameters.cfg["pretrain"])
+                                                     self.parameters.cfg["use_pretrained"])
 
         # Evaluation period
         self.spin_eval_period = pyqtutils.append_spin(self.grid_layout, "Eval period",
@@ -84,7 +84,7 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
                                                                   tooltip="Select folder",
                                                                   mode=QFileDialog.Directory)
         # Expert mode
-        self.check_expert = pyqtutils.append_check(self.grid_layout, "Expert mode", self.parameters.cfg["expert_mode"])
+        self.check_expert = pyqtutils.append_check(self.grid_layout, "Expert mode", self.parameters.cfg["use_custom_config"])
         self.check_expert.stateChanged.connect(self.on_expert_mode_change)
 
         # Custom Model
@@ -155,11 +155,11 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["batch_size"] = self.spin_batch.value()
         self.parameters.cfg["eval_period"] = self.spin_eval_period.value()
         self.parameters.cfg["dataset_split_ratio"] = self.spin_train_test.value()
-        self.parameters.cfg["expert_mode"] = self.check_expert.isChecked()
+        self.parameters.cfg["use_custom_config"] = self.check_expert.isChecked()
         self.parameters.cfg["custom_cfg"] = self.browse_cfg_file.path
         self.parameters.cfg["dataset_folder"] = self.browse_dataset_folder.path
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
-        self.parameters.cfg["pretrain"] = self.check_pretrain.isChecked()
+        self.parameters.cfg["use_pretrained"] = self.check_pretrain.isChecked()
         self.parameters.cfg["weights"] = self.available_cfg_ckpt[self.combo_config.currentText()]["ckpt"]
         # Send signal to launch the process
         self.emit_apply(self.parameters)
