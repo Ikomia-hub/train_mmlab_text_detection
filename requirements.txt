@@ -1,8 +1,0 @@
---find-links https://download.pytorch.org/whl/cu111/torch_stable.html
-torch==1.9.0
-torchvision==0.10.0
---find-links https://download.openmmlab.com/mmcv/dist/cu111/torch1.9.0/index.html
-mmengine==0.3.2
-mmcv==2.0.0rc3
-mmdet==3.0.0rc4
-mmocr==1.0.0rc3
