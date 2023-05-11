@@ -60,10 +60,6 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         # Batch size
         self.spin_batch = pyqtutils.append_spin(self.grid_layout, "Batch size", self.parameters.cfg["batch_size"])
 
-        # Pretrain
-        self.check_pretrain = pyqtutils.append_check(self.grid_layout, "Load mmocr pretrain",
-                                                     self.parameters.cfg["use_pretrained"])
-
         # Evaluation period
         self.spin_eval_period = pyqtutils.append_spin(self.grid_layout, "Eval period",
                                                       self.parameters.cfg["eval_period"])
@@ -84,12 +80,12 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
                                                                   tooltip="Select folder",
                                                                   mode=QFileDialog.Directory)
         # Expert mode
-        self.check_expert = pyqtutils.append_check(self.grid_layout, "Expert mode", self.parameters.cfg["use_custom_config"])
+        self.check_expert = pyqtutils.append_check(self.grid_layout, "Expert mode", self.parameters.cfg["use_expert_mode"])
         self.check_expert.stateChanged.connect(self.on_expert_mode_change)
 
         # Custom Model
         self.label_model = QLabel("Model config file (.py)")
-        self.browse_cfg_file = pyqtutils.BrowseFileWidget(path=self.parameters.cfg["custom_cfg"],
+        self.browse_cfg_file = pyqtutils.BrowseFileWidget(path=self.parameters.cfg["config_file"],
                                                           tooltip="Select file",
                                                           mode=QFileDialog.ExistingFile)
         row = self.grid_layout.rowCount()
@@ -155,12 +151,11 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["batch_size"] = self.spin_batch.value()
         self.parameters.cfg["eval_period"] = self.spin_eval_period.value()
         self.parameters.cfg["dataset_split_ratio"] = self.spin_train_test.value()
-        self.parameters.cfg["use_custom_config"] = self.check_expert.isChecked()
-        self.parameters.cfg["custom_cfg"] = self.browse_cfg_file.path
+        self.parameters.cfg["use_expert_mode"] = self.check_expert.isChecked()
+        self.parameters.cfg["config_file"] = self.browse_cfg_file.path
         self.parameters.cfg["dataset_folder"] = self.browse_dataset_folder.path
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
-        self.parameters.cfg["use_pretrained"] = self.check_pretrain.isChecked()
-        self.parameters.cfg["weights"] = self.available_cfg_ckpt[self.combo_config.currentText()]["ckpt"]
+        self.parameters.cfg["model_weight_file"] = self.available_cfg_ckpt[self.combo_config.currentText()]["ckpt"]
         # Send signal to launch the process
         self.emit_apply(self.parameters)
 

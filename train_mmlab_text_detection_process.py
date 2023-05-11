@@ -93,52 +93,46 @@ class TrainMmlabTextDetectionParam(TaskParam):
     def __init__(self):
         TaskParam.__init__(self)
         self.cfg["model_name"] = "dbnet"
-        self.cfg["config"] = ""
+        self.cfg["config_file"] = ""
         self.cfg["cfg"] = "dbnet_resnet18_fpnc_1200e_icdar2015.py"
-        self.cfg["weights"] = "https://download.openmmlab.com/mmocr/textdet/dbnet/dbnet_resnet18_fpnc_1200e_icdar2015/" \
+        self.cfg["model_weight_file"] = "https://download.openmmlab.com/mmocr/textdet/dbnet/dbnet_resnet18_fpnc_1200e_icdar2015/" \
                               "dbnet_resnet18_fpnc_1200e_icdar2015_20220825_221614-7c0e94f2.pth"
-        self.cfg["custom_cfg"] = ""
-        self.cfg["use_pretrained"] = True
         self.cfg["epochs"] = 10
         self.cfg["batch_size"] = 4
         self.cfg["dataset_split_ratio"] = 90
         self.cfg["output_folder"] = os.path.dirname(os.path.realpath(__file__)) + "/runs/"
         self.cfg["eval_period"] = 1
         self.cfg["dataset_folder"] = os.path.dirname(os.path.realpath(__file__))
-        self.cfg["use_custom_config"] = False
+        self.cfg["use_expert_mode"] = False
 
     def set_values(self, param_map):
         self.cfg["model_name"] = param_map["model_name"]
-        self.cfg["config"] = param_map["config"]
+        self.cfg["config_file"] = param_map["config_file"]
         self.cfg["cfg"] = param_map["cfg"]
-        self.cfg["custom_cfg"] = param_map["custom_cfg"]
-        self.cfg["weights"] = param_map["weights"]
-        self.cfg["use_pretrained"] = utils.strtobool(param_map["use_pretrained"])
+        self.cfg["model_weight_file"] = param_map["model_weight_file"]
         self.cfg["epochs"] = int(param_map["epochs"])
         self.cfg["batch_size"] = int(param_map["batch_size"])
         self.cfg["dataset_split_ratio"] = int(param_map["dataset_split_ratio"])
         self.cfg["output_folder"] = param_map["output_folder"]
         self.cfg["eval_period"] = int(param_map["eval_period"])
         self.cfg["dataset_folder"] = param_map["dataset_folder"]
-        self.cfg["use_custom_config"] = utils.strtobool(param_map["use_custom_config"])
+        self.cfg["use_expert_mode"] = utils.strtobool(param_map["use_expert_mode"])
 
     def get_values(self):
         # Send parameters values to Ikomia application
         # Create the specific dict structure (string container)
         param_map = {}
         param_map["model_name"] = self.cfg["model_name"]
-        param_map["config"] = self.cfg["config"]
+        param_map["config_file"] = self.cfg["config_file"]
         param_map["cfg"] = self.cfg["cfg"]
-        param_map["custom_cfg"] = self.cfg["custom_cfg"]
-        param_map["weights"] = self.cfg["weights"]
-        param_map["use_pretrained"] = str(self.cfg["use_pretrained"])
+        param_map["model_weight_file"] = self.cfg["model_weight_file"]
         param_map["epochs"] = str(self.cfg["epochs"])
         param_map["batch_size"] = str(self.cfg["batch_size"])
         param_map["dataset_split_ratio"] = str(self.cfg["dataset_split_ratio"])
         param_map["output_folder"] = self.cfg["output_folder"]
         param_map["eval_period"] = str(self.cfg["eval_period"])
         param_map["dataset_folder"] = self.cfg["dataset_folder"]
-        param_map["use_custom_config"] = str(self.cfg["use_custom_config"])
+        param_map["use_expert_mode"] = str(self.cfg["use_expert_mode"])
 
         return param_map
 
@@ -202,14 +196,12 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         prepare_dataset(input.data, param.cfg["dataset_folder"], param.cfg["dataset_split_ratio"] / 100)
 
         # Create config from config file and parameters
-        if param.cfg["config"] != "":
-            if os.path.isfile(param.cfg["config"]):
-                param.cfg["use_custom_config"] = True
-                param.cfg["custom_cfg"] = param.cfg["config"]
-
-        if not param.cfg["use_custom_config"]:
-            config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textdet",
-                                  param.cfg["model_name"], param.cfg["cfg"])
+        if not param.cfg["use_expert_mode"]:
+            if os.path.isfile(param.cfg["config_file"]):
+                config = param.cfg["config_file"]
+            else:
+                config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textdet",
+                                    param.cfg["model_name"], param.cfg["cfg"])
             cfg = Config.fromfile(config)
             cfg.work_dir = str(self.output_folder)
             eval_period = param.cfg["eval_period"]
@@ -244,13 +236,13 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
             cfg.val_dataloader.num_workers = 0
             cfg.val_dataloader.persistent_workers = False
 
-            cfg.load_from = param.cfg["weights"] if param.cfg["use_pretrained"] else None
+            cfg.load_from = param.cfg["model_weight_file"]
 
             cfg.train_cfg.max_epochs = param.cfg["epochs"]
             cfg.train_cfg.val_interval = eval_period
 
         else:
-            config = param.cfg["custom_cfg"]
+            config = param.cfg["config_file"]
             cfg = Config.fromfile(config)
 
         amp = True
