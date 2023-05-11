@@ -100,7 +100,6 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         self.spin_eval_period.setVisible(not self.check_expert.isChecked())
         self.combo_model.setVisible(not self.check_expert.isChecked())
         self.combo_config.setVisible(not self.check_expert.isChecked())
-        self.check_pretrain.setVisible(not self.check_expert.isChecked())
 
         # PyQt -> Qt wrapping
         layout_ptr = qtconversion.PyQtToQt(self.grid_layout)
@@ -151,7 +150,7 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["batch_size"] = self.spin_batch.value()
         self.parameters.cfg["eval_period"] = self.spin_eval_period.value()
         self.parameters.cfg["dataset_split_ratio"] = self.spin_train_test.value()
-        self.parameters.cfg["use_expert_mode"] = self.check_expert.isChecked()
+        self.parameters.cfg["expert_mode"] = self.check_expert.isChecked()
         self.parameters.cfg["config_file"] = self.browse_cfg_file.path
         self.parameters.cfg["dataset_folder"] = self.browse_dataset_folder.path
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
