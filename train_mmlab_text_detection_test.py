@@ -11,7 +11,7 @@ def test(t, data_dict):
     logger.info("===== Test::train mmlab text detection =====")
     input_dataset = t.get_input(0)
     params = t.get_parameters()
-    plugins_folder = ikomia.ik_registry.getPluginsDirectory()
+    plugins_folder = ikomia.ik_registry.get_plugins_directory()
     plugin_folder = os.path.join(plugins_folder, "Python", t.name)
     configs_path = os.path.join(plugin_folder, "configs", "textdet")
     input_dataset.load(data_dict["datasets"]["text"]["dataset_wildreceipt"])
