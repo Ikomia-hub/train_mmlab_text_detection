@@ -1,5 +1,4 @@
 import logging
-from ikomia.core import task, ParamMap
 from ikomia.utils.tests import run_for_test
 import os
 import ikomia
@@ -11,7 +10,7 @@ logger = logging.getLogger(__name__)
 def test(t, data_dict):
     logger.info("===== Test::train mmlab text detection =====")
     input_dataset = t.get_input(0)
-    params = task.get_parameters(t)
+    params = t.get_parameters()
     plugins_folder = ikomia.ik_registry.getPluginsDirectory()
     plugin_folder = os.path.join(plugins_folder, "Python", t.name)
     configs_path = os.path.join(plugin_folder, "configs", "textdet")
@@ -29,9 +28,9 @@ def test(t, data_dict):
                 params["cfg"] = cfg
                 params["weights"] = ckpt
                 params["model_name"] = model_name
-                params["pretrain"] = True
-                params["epochs"] = 2
-                params["batch_size"] = 1
-                params["eval_period"] = 1
-                task.set_parameters(t, params)
+                params["pretrain"] = "True"
+                params["epochs"] = "2"
+                params["batch_size"] = "1"
+                params["eval_period"] = "1"
+                t.set_parameters(params)
                 yield run_for_test(t)
