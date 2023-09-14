@@ -33,6 +33,7 @@ from mmengine.runner import Runner
 from mmocr.utils import register_all_modules
 from typing import Union, Dict
 from mmengine.visualization import Visualizer
+import yaml
 
 ConfigType = Union[Dict, Config, ConfigDict]
 
@@ -95,8 +96,7 @@ class TrainMmlabTextDetectionParam(TaskParam):
         self.cfg["model_name"] = "dbnet"
         self.cfg["config_file"] = ""
         self.cfg["cfg"] = "dbnet_resnet18_fpnc_1200e_icdar2015.py"
-        self.cfg["model_weight_file"] = "https://download.openmmlab.com/mmocr/textdet/dbnet/dbnet_resnet18_fpnc_1200e_icdar2015/" \
-                              "dbnet_resnet18_fpnc_1200e_icdar2015_20220825_221614-7c0e94f2.pth"
+        self.cfg["model_weight_file"] = ""
         self.cfg["epochs"] = 10
         self.cfg["batch_size"] = 4
         self.cfg["dataset_split_ratio"] = 90
@@ -166,6 +166,25 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         else:
             return 1
 
+    @staticmethod
+    def get_model_zoo():
+        configs_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textdet")
+        available_pairs = []
+        for model_name in os.listdir(configs_folder):
+            if model_name.startswith('_'):
+                continue
+            yaml_file = os.path.join(configs_folder, model_name, "metafile.yml")
+            if os.path.isfile(yaml_file):
+                with open(yaml_file, "r") as f:
+                    models_list = yaml.load(f, Loader=yaml.FullLoader)
+                    if 'Models' in models_list:
+                        models_list = models_list['Models']
+                    if not isinstance(models_list, list):
+                        continue
+                for model_dict in models_list:
+                    available_pairs.append({"model_name": model_name, "cfg": os.path.basename(model_dict["Name"])})
+        return available_pairs
+
     def run(self):
         # Core function of your process
         # Call begin_task_run for initialization
@@ -199,10 +218,34 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
         if not param.cfg["use_expert_mode"]:
             if os.path.isfile(param.cfg["config_file"]):
                 config = param.cfg["config_file"]
+                cfg = Config.fromfile(config)
+                cfg.load_from = param.cfg["model_weight_file"]
+
             else:
-                config = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textdet",
-                                    param.cfg["model_name"], param.cfg["cfg"])
-            cfg = Config.fromfile(config)
+                yaml_file = os.path.join(os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs", "textdet"),
+                                         param.cfg["model_name"], "metafile.yml")
+
+                param.cfg["cfg"] = os.path.splitext(param.cfg["cfg"])[0]
+
+                if os.path.isfile(yaml_file):
+                    with open(yaml_file, "r") as f:
+                        models_list = yaml.load(f, Loader=yaml.FullLoader)['Models']
+
+                    available_cfg_ckpt = {model_dict["Name"]: {'cfg': model_dict["Config"],
+                                                               'ckpt': model_dict["Weights"]}
+                                          for model_dict in models_list}
+                    if param.cfg["cfg"] in available_cfg_ckpt:
+                        cfg = available_cfg_ckpt[param.cfg["cfg"]]['cfg']
+                        ckpt = available_cfg_ckpt[param.cfg["cfg"]]['ckpt']
+                        cfg = os.path.join(os.path.dirname(os.path.abspath(__file__)), cfg)
+                    else:
+                        raise Exception(
+                            f"{param.cfg} dos not exist for {param.model_name}. Available configs for are {', '.join(list(available_cfg_ckpt.keys()))}")
+                else:
+                    raise Exception(f"Model name {param.model_name} does not exist.")
+                cfg = Config.fromfile(cfg)
+                cfg.load_from = ckpt
+
             cfg.work_dir = str(self.output_folder)
             eval_period = param.cfg["eval_period"]
             cfg.evaluation = dict(interval=eval_period, metric=["icdar/hmean"],
@@ -235,8 +278,6 @@ class TrainMmlabTextDetection(dnntrain.TrainProcess):
             cfg.val_dataloader.batch_size = param.cfg["batch_size"]
             cfg.val_dataloader.num_workers = 0
             cfg.val_dataloader.persistent_workers = False
-
-            cfg.load_from = param.cfg["model_weight_file"]
 
             cfg.train_cfg.max_epochs = param.cfg["epochs"]
             cfg.train_cfg.val_interval = eval_period

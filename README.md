@@ -19,10 +19,9 @@
     </a> 
 </p>
 
-Training process for MMOCR from MMLAB in text detection.You can choose a predefined model configuration from MMLAB's model zoo or use custom models and custom pretrained weights by ticking Expert mode button.
+Train text detection models from MMLAB.
 
-[Insert illustrative image here. Image must be accessible publicly, in algorithm Github repository for example.
-<img src="images/illustration.png"  alt="Illustrative image" width="30%" height="30%">]
+![example](https://raw.githubusercontent.com/Ikomia-hub/infer_mmlab_text_detection/feat/new_readme/icons/results.jpg)
 
 ## :rocket: Use with Ikomia API
 
@@ -36,20 +35,32 @@ pip install ikomia
 
 #### 2. Create your workflow
 
-[Change the sample image URL to fit algorithm purpose]
+To try this code snippet, you can download and extract from [wildreceipt](https://download.openmmlab.com/mmocr/data/wildreceipt.tar).
+Then make sure you fill the parameter **dataset_folder** correctly.
 
 ```python
-import ikomia
 from ikomia.dataprocess.workflow import Workflow
 
 # Init your workflow
 wf = Workflow()
 
-# Add algorithm
-algo = wf.add_task(name="train_mmlab_text_detection", auto_connect=True)
+# Add text recognition dataset
+dataset = wf.add_task(name="dataset_wildreceipt", auto_connect=False)
 
-# Run on your image  
-wf.run_on(url="example_image.png")
+# Set dataset parameters
+dataset.set_parameters({'dataset_folder': "/path/to/dataset/folder"})
+
+# Add train algorithm
+train = wf.add_task(name="train_mmlab_text_detection", auto_connect=True)
+
+# Set train algorithm parameters
+train.set_parameters({'model_name': 'dbnetpp', 
+                      'cfg': 'dbnetpp_resnet50-dcnv2_fpnc_1200e_icdar2015',
+                      'epochs': '10',
+                      'batch_size': '2'})
+
+# Launch training
+wf.run()
 ```
 
 ## :sunny: Use with Ikomia Studio
@@ -62,12 +73,40 @@ Ikomia Studio offers a friendly UI with the same features as the API.
 
 ## :pencil: Set algorithm parameters
 
-[Explain each algorithm parameters]
+- **model_name** (str, default="dbnet"): name of pretrained model.
+- **cfg** (str, default="dbnet_resnet18_fpnc_1200e_icdar2015.py"): filename of pretrained model's config.  
 
-[Change the sample image URL to fit algorithm purpose]
+**model_name** and **cfg** work by pair. You can print the available possibilities with this code snippet:
+```python
+from ikomia.dataprocess.workflow import Workflow
+
+# Init your workflow
+wf = Workflow()
+
+# Add algorithm
+algo = wf.add_task(name="train_mmlab_text_detection")
+
+# Get model zoo and print it
+model_zoo = algo.get_model_zoo()
+print(model_zoo)
+
+# Set parameters with the first model of the list
+algo.set_parameters(model_zoo[0])
+```
+
+- **epochs** (int, default=10): number of complete passes through the training dataset.
+- **batch_size** (int, default=4): number of samples processed before the model is updated.
+- **dataset_split_ratio** (int, default=90): in percentage, divide the dataset into train and evaluation sets ]0, 100[.
+- **output_folder** (str): path to where the model will be saved. Default folder is "runs/" in the algorithm directory.
+- **eval_period** (int, default=1): interval between evaluations.
+- **dataset_folder** (str): path to where the dataset compatible with mmlab is stored. Default folder is "/dataset" in the algorithm directory.
+- **expert_mode** (bool, default=False): set to True only if you know how mmlab works. Then you can set all the parameters in the mmlab config system and it will override every other parameters above.
+- **config_file** (str, default=""): path to the .py config file. Only for custom models.
+- **model_weight_file** (str, default=""): path to the .pth weight file. Only for custom models.  
+
+*Note*: parameter key and value should be in **string format** when added to the dictionary.
 
 ```python
-import ikomia
 from ikomia.dataprocess.workflow import Workflow
 
 # Init your workflow
@@ -77,39 +116,20 @@ wf = Workflow()
 algo = wf.add_task(name="train_mmlab_text_detection", auto_connect=True)
 
 algo.set_parameters({
-    "param1": "value1",
-    "param2": "value2",
-    ...
+    "model_name": "dbnetpp",
+    "cfg": "dbnetpp_resnet50_fpnc_1200e_icdar2015.py",
+    "epochs": "20",
+    "batch_size": "2",
+    "eval_period": "2",
+    "dataset_split_ratio": "90",
+    "output_folder": "/out",
+    "dataset_folder": "/dataset",
+    "export_mode": "False",
+    "config_file": "",
+    "model_weight_file": ""
 })
 
-# Run on your image  
-wf.run_on(url="example_image.png")
-
-```
-
-## :mag: Explore algorithm outputs
-
-Every algorithm produces specific outputs, yet they can be explored them the same way using the Ikomia API. For a more in-depth understanding of managing algorithm outputs, please refer to the [documentation](https://ikomia-dev.github.io/python-api-documentation/advanced_guide/IO_management.html).
-
-```python
-import ikomia
-from ikomia.dataprocess.workflow import Workflow
-
-# Init your workflow
-wf = Workflow()
-
-# Add algorithm
-algo = wf.add_task(name="train_mmlab_text_detection", auto_connect=True)
-
-# Run on your image  
-wf.run_on(url="example_image.png")
-
-# Iterate over outputs
-for output in algo.get_outputs()
-    # Print information
-    print(output)
-    # Export it to JSON
-    output.to_json()
+# Continue your workflow
 ```
 
 ## :fast_forward: Advanced usage 

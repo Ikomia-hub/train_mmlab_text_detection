@@ -127,25 +127,23 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
                 with open(yaml_file, "r") as f:
                     models_list = yaml.load(f, Loader=yaml.FullLoader)['Models']
 
-                self.available_cfg_ckpt = {model_dict["Name"]: {'cfg': model_dict["Config"],
-                                                                'ckpt': model_dict["Weights"]}
-                                           for
-                                           model_dict in models_list}
-                for experiment_name in self.available_cfg_ckpt.keys():
+                available_cfg = [model_dict["Config"] for model_dict in models_list]
+
+                for experiment_name in available_cfg:
                     self.combo_config.addItem(experiment_name)
                     config_names.append(experiment_name)
-                selected_cfg = self.parameters.cfg["cfg"].replace(".py", "")
+                selected_cfg = os.path.splitext(self.parameters.cfg["cfg"])[0]
                 if selected_cfg in config_names:
                     self.combo_config.setCurrentText(selected_cfg)
                 else:
-                    self.combo_config.setCurrentText(list(self.available_cfg_ckpt.keys())[0])
+                    self.combo_config.setCurrentText(available_cfg[0])
 
     def on_apply(self):
         # Apply button clicked slot
 
         # Get parameters from widget
         self.parameters.cfg["model_name"] = self.combo_model.currentText()
-        _, self.parameters.cfg["cfg"] = os.path.split(self.available_cfg_ckpt[self.combo_config.currentText()]["cfg"])
+        self.parameters.cfg["cfg"] = self.combo_config.currentText()
         self.parameters.cfg["epochs"] = self.spin_epochs.value()
         self.parameters.cfg["batch_size"] = self.spin_batch.value()
         self.parameters.cfg["eval_period"] = self.spin_eval_period.value()
@@ -154,7 +152,6 @@ class TrainMmlabTextDetectionWidget(core.CWorkflowTaskWidget):
         self.parameters.cfg["config_file"] = self.browse_cfg_file.path
         self.parameters.cfg["dataset_folder"] = self.browse_dataset_folder.path
         self.parameters.cfg["output_folder"] = self.browse_out_folder.path
-        self.parameters.cfg["model_weight_file"] = self.available_cfg_ckpt[self.combo_config.currentText()]["ckpt"]
         # Send signal to launch the process
         self.emit_apply(self.parameters)
 
