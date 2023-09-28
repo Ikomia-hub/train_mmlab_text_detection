@@ -358,10 +358,6 @@ class TrainMmlabTextDetectionFactory(dataprocess.CTaskFactory):
         # Set process information as string here
         self.info.name = "train_mmlab_text_detection"
         self.info.short_description = "Training process for MMOCR from MMLAB in text detection"
-        self.info.description = "Training process for MMOCR from MMLAB in text detection." \
-                                "You can choose a predefined model configuration from MMLAB's " \
-                                "model zoo or use custom models and custom pretrained weights " \
-                                "by ticking Expert mode button."
         # relative path -> as displayed in Ikomia application process tree
         self.info.path = "Plugins/Python/Text"
         self.info.version = "1.0.0"
@@ -376,7 +372,8 @@ class TrainMmlabTextDetectionFactory(dataprocess.CTaskFactory):
         # URL of documentation
         self.info.documentation_link = "https://mmocr.readthedocs.io/en/latest/"
         # Code source repository
-        self.info.repository = "https://github.com/open-mmlab/mmocr"
+        self.info.repository = "https://github.com/Ikomia-hub/train_mmlab_text_detection"
+        self.info.original_repository = "https://github.com/open-mmlab/mmocr"
         # Keywords used for search
         self.info.keywords = "mmlab, mmocr, text, detection, pytorch, dbnet, mask-rcnn, textsnake"
 
