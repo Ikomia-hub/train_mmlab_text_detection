@@ -376,6 +376,8 @@ class TrainMmlabTextDetectionFactory(dataprocess.CTaskFactory):
         self.info.original_repository = "https://github.com/open-mmlab/mmocr"
         # Keywords used for search
         self.info.keywords = "mmlab, mmocr, text, detection, pytorch, dbnet, mask-rcnn, textsnake"
+        self.info.algo_type = core.AlgoType.TRAIN
+        self.info.algo_tasks = "OCR"
 
     def create(self, param=None):
         # Create process object
