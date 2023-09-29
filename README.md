@@ -131,7 +131,3 @@ algo.set_parameters({
 
 # Continue your workflow
 ```
-
-## :fast_forward: Advanced usage 
-
-[optional]
