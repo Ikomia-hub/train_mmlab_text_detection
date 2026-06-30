@@ -375,6 +375,7 @@ class TrainMmlabTextDetectionFactory(dataprocess.CTaskFactory):
         self.info.path = "Plugins/Python/Text"
         self.info.version = "2.1.0"
         self.info.min_python_version = "3.10.0"
+        self.info.max_python_version = "3.11.0"
         self.info.min_ikomia_version = "0.16.0"
         self.info.icon_path = "icons/mmlab.png"
         self.info.authors = "Kuang, Zhanghui and Sun, Hongbin and Li, Zhizhong and Yue, Xiaoyu and Lin," \
