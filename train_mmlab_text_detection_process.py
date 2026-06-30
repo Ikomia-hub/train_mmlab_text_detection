@@ -373,7 +373,7 @@ class TrainMmlabTextDetectionFactory(dataprocess.CTaskFactory):
         self.info.short_description = "Training process for MMOCR from MMLAB in text detection"
         # relative path -> as displayed in Ikomia application process tree
         self.info.path = "Plugins/Python/Text"
-        self.info.version = "2.0.0"
+        self.info.version = "2.1.0"
         self.info.min_python_version = "3.10.0"
         self.info.min_ikomia_version = "0.16.0"
         self.info.icon_path = "icons/mmlab.png"
